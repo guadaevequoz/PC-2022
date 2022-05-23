@@ -296,3 +296,89 @@ PROCEDURE CLINICA {
 ```
 
 ### 5) En un sistema para acreditar carreras universitarias, hay UN Servidor que atiende pedidos de U Usuarios de a uno a la vez y de acuerdo con el orden en que se hacen los pedidos. Cada usuario trabaja en el documento a presentar, y luego lo envía al servidor; espera la respuesta de este que le indica si está todo bien o hay algún error. Mientras haya algún error, vuelve a trabajar con el documento y a enviarlo al servidor. Cuando el servidor le responde que está todo bien, el usuario se retira. Cuando un usuario envía un pedido espera a lo sumo 2 minutos a que sea recibido por el servidor, pasado ese tiempo espera un minuto y vuelve a intentarlo (usando el mismo documento).
+
+```ada
+PROCEDURE SISTEMA {
+    TASK SERVIDOR IS
+        ENTRY PEDIDO(P: IN text, R: OUT boolean);
+    END SERVIDOR;
+
+    TASK TYPE USUARIO;
+
+    USUARIOS: ARRAY [0..U-1] OF USUARIO;
+
+    TASK BODY SERVIDOR IS
+    BEGIN
+        WHILE(TRUE) LOOP
+            ACCEPT PEDIDO(P: IN text, R: OUT boolean)
+                R = P.atender();
+            END PEDIDO();
+        END LOOP;
+    END SERVIDOR;
+
+    TASK BODY USUARIO IS
+    VAR
+        R: boolean;
+        DOC: text;
+    BEGIN
+        R = false;
+        WHILE(!R) LOOP
+            DOC.Modificar();
+            SELECT
+                SERVIDOR.PEDIDO(DOC, R);
+            OR DELAY 2
+                DELAY(1);
+            END SELECT;
+        END LOOP;
+    END USUARIO;
+
+}
+
+```
+
+### 6) En una playa hay 5 equipos de 4 personas cada uno (en total son 20 personas donde cada una conoce previamente a que equipo pertenece). Cuando las personas van llegando esperan con los de su equipo hasta que el mismo esté completo (hayan llegado los 4 integrantes), a partir de ese momento el equipo comienza a jugar. El juego consiste en que cada integrante del grupo junta 15 monedas de a una en una playa (las monedas pueden ser de 1, 2 o 5 pesos) y se suman los montos de las 60 monedas conseguidas en el grupo. Al finalizar cada persona debe conocer el grupo que más dinero junto. Nota: maximizar la concurrencia. Suponga que para simular la búsqueda de una moneda por parte de una persona existe una función Moneda() que retorna el valor de la moneda encontrada.
+
+```ada
+
+```
+
+### 7) Hay un sistema de reconocimiento de huellas dactilares de la policía que tiene 8 Servidores para realizar el reconocimiento, cada uno de ellos trabajando con una Base de Datos propia; a su vez hay un Especialista que utiliza indefinidamente. El sistema funciona de la siguiente manera: el Especialista toma una imagen de una huella (TEST) y se la envía a los servidores para que cada uno de ellos le devuelva el código y el valor de similitud de la huella que más se asemeja a TEST en su BD; al final del procesamiento, el especialista debe conocer el código de la huella con mayor valor de similitud entre las devueltas por los 8 servidores. Cuando ha terminado de procesar una huella comienza nuevamente todo el ciclo. <br> Nota: suponga que existe una función Buscar(test, código, valor) que utiliza cada Servidor donde recibe como parámetro de entrada la huella test, y devuelve como parámetros de salida el código y el valor de similitud de la huella más parecida a test en la BD correspondiente. Maximizar la concurrencia y no generar demora innecesaria.
+
+```ada
+
+PROCEDURE SISTEMA {
+    TASK ESPECIALISTA;
+    TASK ADMINISTRADOR;
+
+    TASK TYPE SERVIDOR IS
+        ENTRY PEDIDO(TEST: IN text, CODIGO: OUT int, VALOR: OUT int);
+    END SERVIDOR;
+
+    SERVIDORES: ARRAY [0..7] OF SERVIDOR;
+
+    TASK BODY ESPECIALISTA IS
+    VAR
+        CODIGO: ARRAY[8] OF INT;
+        VALOR: ARRAY[8] OF INT;
+        HUELLA: INT;
+    BEGIN
+        WHILE(TRUE) LOOP
+            FOR(INT i = 0; i < 8; i++){
+                SERVIDORES[i].PEDIDO(TEST, CODIGO[i], VALOR[i]);
+            }
+            HUELLA = CODIGO[VALOR.indexOf(VALOR.max())];
+        END LOOP;
+
+    END ESPECIALISTA;
+
+    TASK BODY SERVIDOR IS
+    BEGIN
+        WHILE(TRUE) LOOP
+            ACCEPT PEDIDO(TEST, CODIGO, VALOR)
+                Buscar(TEST, CODIGO, VALOR);
+            END PEDIDO;
+        END LOOP;
+    END SERVIDOR;
+}
+
+```
