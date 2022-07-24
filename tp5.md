@@ -1,3 +1,5 @@
+## Práctica 5 - ADA
+
 ### 1) Se requiere modelar un puente de un solo sentido, el puente solo soporta el peso de 5 unidades de peso. Cada auto pesa 1 unidad, cada camioneta pesa 2 unidades y cada camión 3 unidades. Suponga que hay una cantidad innumerable de vehículos (A autos, B camionetas y C camiones).
 
 #### a) Realice la solución suponiendo que todos los vehículos tienen la misma prioridad.
@@ -185,6 +187,9 @@ PROCEDURE PROGRAM {
     END CENTRAL;
     TASK PROCESO1;
     TASK PROCESO2;
+    TASK TIMER;
+
+    TASK
 
     TASK BODY CENTRAL IS
         ACCEPT SEÑAL1();
@@ -197,7 +202,7 @@ PROCEDURE PROGRAM {
                 ACCEPT SEÑAL2();
                 SELECT
                     SEÑAL2();
-                OR DELAY 180
+                OR DELAY 120
                 END SELECT;
             END SELECT;
         END LOOP;
@@ -206,7 +211,7 @@ PROCEDURE PROGRAM {
     TASK BODY PROCESO1 IS
         SELECT
             CENTRAL.SEÑAL1()
-        OR DELAY 180
+        OR DELAY 120
         END SELECT;
     END PROCESO1;
 
@@ -219,7 +224,6 @@ PROCEDURE PROGRAM {
             END
         END SELECT;
     END PROCESO2;
-
 }
 ```
 
@@ -231,9 +235,11 @@ PROCEDURE CLINICA {
         ENTRY PERSONAENFERMA();
         ENTRY PERSONANORMAL();
         ENTRY ENFERMERA();
-        ENTRY NOTAENFERMERA();
     END MEDICO;
-
+    TASK ANOTADOR IS
+        ENTRY NOTAENFERMERA();
+        ENTRY RECIBIRNOTA();
+    END ANOTADOR;
     TASK TYPE PERSONA;
     TASK TYPE ENFERMERA;
 
@@ -241,6 +247,8 @@ PROCEDURE CLINICA {
     ENFERMERAS: ARRAY[0..E-1] OF ENFERMERA;
 
     TASK BODY MEDICO IS
+    VAR
+        NOTA: TEXT;
     BEGIN
         WHILE(TRUE) LOOP
             SELECT
@@ -256,9 +264,11 @@ PROCEDURE CLINICA {
                     DELAY X; //ATENDER ENFERMERA
                 END ENFERMERA();
             ELSE
-                ACCEPT NOTAENFERMERA(P: IN STRING)
-                    P.ATENDER()
-                END NOTAENFERMERA():
+                SELECT
+                    ANOTADOR.RECIBIRNOTA(NOTA);
+                OR
+                    //hacer cosas de médico
+                END SELECT;
             END SELECT;
         END LOOP;
     END MEDICO;
@@ -269,12 +279,12 @@ PROCEDURE CLINICA {
             SELECT
                 MEDICO.ENFERMERA();
             ELSE
-                MEDICO.NOTAENFERMERA();
+                ANOTADOR.NOTAENFERMERA(NOTA);
             END SELECT;
         END LOOP;
     END ENFERMERA;
 
-    TASK PERSONA IS
+    TASK BODY PERSONA IS
     VAR
         ESENFERMA: BOOLEAN;
         ATENTIDO: BOOLEAN;
@@ -284,14 +294,38 @@ PROCEDURE CLINICA {
         CANT = 0;
         WHILE(!ATENDIDO && CANT < 3) LOOP
             CANT++;
-            SELECT
-                IF(ESENFERMA) MEDICO.PERSONAENFERMA()
-                ELSE MEDICO.PERSONANORMAL()
-            OR DELAY 5
-                DELAY(10);
-            END SELECT;
+            IF(ESENFERMA){
+                SELECT
+                    MEDICO.PERSONAENFERMA()
+                OR DELAY 5
+                    DELAY(10);
+                END SELECT;
+            }ELSE{
+                SELECT
+                    MEDICO.PERSONANORMAL()
+                OR DELAY 5
+                    DELAY(10);
+                END SELECT;
+            }
         END LOOP;
     END PERSONA;
+
+    TASK BODY ANOTADOR IS
+    VAR
+        COLA: queue;
+    BEGIN
+        WHILE(TRUE) LOOP
+            SELECT
+                WHEN (NOTAENFERMERA'COUNT > 0) ACCEPT NOTAENFERMERA(NOTA: IN text)
+                    COLA.push(NOTA)
+                END ACCEPT;
+            OR
+                WHEN(RECIBIRNOTA'COUNT > 0 && !COLA.isEmpty()) ACCEPT RECIBIRNOTA(NOTA: OUT text)
+                    NOTA = COLA.pop();
+                END ACCEPT;
+            END SELECT;
+        END LOOP;
+    END ANOTADOR;
 }
 ```
 
@@ -336,18 +370,14 @@ PROCEDURE SISTEMA {
 
 ```
 
-### 6) En una playa hay 5 equipos de 4 personas cada uno (en total son 20 personas donde cada una conoce previamente a que equipo pertenece). Cuando las personas van llegando esperan con los de su equipo hasta que el mismo esté completo (hayan llegado los 4 integrantes), a partir de ese momento el equipo comienza a jugar. El juego consiste en que cada integrante del grupo junta 15 monedas de a una en una playa (las monedas pueden ser de 1, 2 o 5 pesos) y se suman los montos de las 60 monedas conseguidas en el grupo. Al finalizar cada persona debe conocer el grupo que más dinero junto. Nota: maximizar la concurrencia. Suponga que para simular la búsqueda de una moneda por parte de una persona existe una función Moneda() que retorna el valor de la moneda encontrada.
-
-```ada
-
-```
-
 ### 7) Hay un sistema de reconocimiento de huellas dactilares de la policía que tiene 8 Servidores para realizar el reconocimiento, cada uno de ellos trabajando con una Base de Datos propia; a su vez hay un Especialista que utiliza indefinidamente. El sistema funciona de la siguiente manera: el Especialista toma una imagen de una huella (TEST) y se la envía a los servidores para que cada uno de ellos le devuelva el código y el valor de similitud de la huella que más se asemeja a TEST en su BD; al final del procesamiento, el especialista debe conocer el código de la huella con mayor valor de similitud entre las devueltas por los 8 servidores. Cuando ha terminado de procesar una huella comienza nuevamente todo el ciclo. <br> Nota: suponga que existe una función Buscar(test, código, valor) que utiliza cada Servidor donde recibe como parámetro de entrada la huella test, y devuelve como parámetros de salida el código y el valor de similitud de la huella más parecida a test en la BD correspondiente. Maximizar la concurrencia y no generar demora innecesaria.
 
 ```ada
 
 PROCEDURE SISTEMA {
-    TASK ESPECIALISTA;
+    TASK ESPECIALISTA IS
+        ENTRY ENVIAR(CODIGO: IN int, VALOR: IN int);
+    END ESPECIALISTA;
     TASK ADMINISTRADOR;
 
     TASK TYPE SERVIDOR IS
@@ -364,7 +394,10 @@ PROCEDURE SISTEMA {
     BEGIN
         WHILE(TRUE) LOOP
             FOR(INT i = 0; i < 8; i++){
-                SERVIDORES[i].PEDIDO(TEST, CODIGO[i], VALOR[i]);
+                SERVIDORES[i].PEDIDO(TEST);
+            }
+            FOR(INT i = 0; i < 8; i++){
+               ACCEPT ENVIAR(CODIGO[i], VALOR[i]) END;
             }
             HUELLA = CODIGO[VALOR.indexOf(VALOR.max())];
         END LOOP;
@@ -374,9 +407,9 @@ PROCEDURE SISTEMA {
     TASK BODY SERVIDOR IS
     BEGIN
         WHILE(TRUE) LOOP
-            ACCEPT PEDIDO(TEST, CODIGO, VALOR)
-                Buscar(TEST, CODIGO, VALOR);
-            END PEDIDO;
+            ACCEPT PEDIDO(TEST) END;
+            Buscar(TEST, CODIGO, VALOR);
+            ESPECIALISTA.ENVIAR(CODIGO, VALOR);
         END LOOP;
     END SERVIDOR;
 }
